@@ -4,7 +4,6 @@ import argparse
 heapq=None
 collections=None
 pysam=None
-Bio=None
 
 
 def get_svlen(v):
@@ -438,7 +437,6 @@ def main():
 
     args = parser.parse_args()
     global pysam; import pysam
-    global Bio; import Bio
     global collections; import collections
     global heapq; import heapq
 
