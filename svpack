@@ -24,7 +24,8 @@ class VariantFileStream:
             self._variant_file = variant_file
         else:
             # If the file is not sorted, then read it into memory and sort.
-            self._variant_file = iter(sorted(variant_file, key=lambda v: self.get_variant_key(v)))
+            sortedvariants = list(sorted(variant_file, key=lambda v: self.get_variant_key(v)))
+            self._variant_file = iter(sortedvariants)
 
     def close(self):
         if hasattr(self._variant_file, "close"):
@@ -52,7 +53,8 @@ class VariantFileStream:
         """Key for ordering variant records. Sort by (chromid, chromname, start).  The chromosome name
         is included to support alphabetical sorting of unlisted chromosomes after the listed chromosomes.
         For VCFs without any listed chromosomes, this permits alphabetical sort order."""
-        return (self.get_chrom_id(variant.chrom), variant.chrom if variant.chrom.startswith("chr") else "chr" + variant.chrom, variant.start)
+        key = (self.get_chrom_id(variant.chrom), variant.chrom if variant.chrom.startswith("chr") else "chr" + variant.chrom, variant.start)
+        return key
 
 
     def __next__(self):
@@ -174,7 +176,6 @@ def match_main(args):
             Avcf.header.add_record(Bvcf_windower.header.info[info].record)
             outvcf.header.add_record(Bvcf_windower.header.info[info].record)
 
-
     PAD = 100
     for Avar in Avcf:
         matches = list()
@@ -188,6 +189,7 @@ def match_main(args):
             #    1) nearby
             #    2) same SVTYPE
             #    3) similar SVLEN
+
 
             # Advance the Bvcf window to contain variants that nearby Avar.
             Bvcf_windower.advance_start(Avar.chrom, Avar.start - PAD)
@@ -203,19 +205,21 @@ def match_main(args):
                     if svlen_diff < PAD:
                         matches.append(Bvar)
 
-        if bool(matches) != bool(args.invert):
+        bestmatch = None
+        bestmatchdiff = 0
+        if len(matches):
+            for match in matches:
+                matchsvlen = get_svlen(match)
+                matchdiff = abs(matchsvlen - Asvlen) + abs(match.start - Avar.start)
+
+                if bestmatch is None or matchdiff < bestmatchdiff:
+                    bestmatch = match
+                    bestmatchdiff = matchdiff
+
+
+        if len(args.info) or bool(matches) != bool(args.invert):
             if len(matches) and len(args.info):
                 # Apply annotation from the best match, define as the one with smallest sum of differences in SVLEN and POS.
-                bestmatch = None
-                bestmatchdiff = 0
-                for match in matches:
-                    matchsvlen = get_svlen(match)
-                    matchdiff = abs(matchsvlen - Asvlen) + abs(match.start - Avar.start)
-
-                    if bestmatch is None or matchdiff < bestmatchdiff:
-                        bestmatch = match
-                        bestmatchdiff = matchdiff
-
                 infos_to_apply = set()
                 for info in args.info:
                     if info == "*":
@@ -347,19 +351,37 @@ class Gff:
             self.genes_by_chrom[gene.chrom].append(gene)
 
 
+class Consequence:
+    def __init__(self, consequence, gene, transcript, biotype, strand, amino_acid_change, dna_change):
+        self.consequence = consequence
+        self.gene = gene
+        self.transcript = transcript
+        self.biotype = biotype
+        self.strand = strand
+        self.amino_acid_change = amino_acid_change
+        self.dna_change = dna_change
+
+    def __str__(self):
+        return "|".join([self.consequence, self.gene, self.transcript, self.biotype, self.strand, self.amino_acid_change, self.dna_change])
+
+
 def consequence_main(args):
     gene_gff = Gff(args.genes_gff)
     genes = collections.deque(gene_gff.genes)
     activegenes = [] # Heap sorted by (chrom,chromEnd) of genes that might overlap a variant
     Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
-    #outvcf = pysam.VariantFile("-", "w", header=Avcf.header)
+    outvcf = pysam.VariantFile("-", "w", header=Avcf.header)
+    for vcf in (Avcf, outvcf):
+        vcf.header.add_line("""##INFO=<ID=BCSQ,Number=.,Type=String,Description="Local consequence annotation. Format: Consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change">""")
 
+    serialnumber = 0
     for Avar in Avcf:
         if "SVTYPE" in Avar.info: # Annotate SVs with consequence
             # Add genes that start before the current variant ends to the active heap.
             while len(genes) and (genes[0].chrom,genes[0].start) <= (Avar.chrom,Avar.stop):
                 gene = genes.popleft()
-                heapq.heappush(activegenes, ((gene.chrom,gene.end), gene))
+                heapq.heappush(activegenes, ((gene.chrom,gene.end,serialnumber), gene))
+                serialnumber += 1
             # Pop genes that end before the current variant starts
             # and so can not overlap `Avar` or any later variants.
             while len(activegenes) and activegenes[0][0] < (Avar.chrom,Avar.start):
@@ -368,33 +390,37 @@ def consequence_main(args):
             # Deletion, insertion, inversion, duplication, and CNV variants
             # impact a gene if an exon of the gene falls between the start
             # and end of the variant.
-            if Avar.info["SVTYPE"] in ("DEL", "DUP", "INS", "INV", "CNV"):
+            consequences = []
+            svtype = Avar.info["SVTYPE"]
+            if svtype in ("DEL", "DUP", "INS", "INV", "CNV"):
                 chromStart = Avar.start
                 chromEnd = Avar.stop
                 for k,gene in activegenes:
+                    transcripts = set()
                     if gene.chrom == Avar.chrom and gene.start < Avar.start and gene.end >= Avar.start:
-                        overlaps = False
                         for transcript in gene.transcripts:
                             for exon in transcript.exons:
                                 if exon.end >= chromStart and exon.start < chromEnd:
-                                    overlaps = True
+                                    transcripts.add(transcript)
                                     break
-                            if overlaps:
-                                break
-                        if overlaps:
-                            print("GENE", Avar.info["SVTYPE"], chromStart, chromEnd, gene.symbol)
+                    # Add one BCSQ per gene
+                    if transcripts:
+                        consequences.append(Consequence("sv:" + svtype, gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
 
             # Breakend variants impact a gene if the break falls anywhere
             # within the gene body.
             if Avar.info["SVTYPE"] == "BND":
                 for k,gene in activegenes:
                     if gene.chrom == Avar.chrom and gene.start < Avar.start and gene.end >= Avar.start:
-                        print("GENE", "BND", chromStart, chromEnd, gene.symbol)
+                        consequences.append(Consequence("sv:BND", gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
 
-        #outvcf.write(Avar)
+        if consequences:
+            Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
+
+        outvcf.write(Avar)
 
     Avcf.close()
-    #outvcf.close()
+    outvcf.close()
 
 
 # Define usage for command and subcommands
@@ -403,7 +429,7 @@ parser = argparse.ArgumentParser(description="Structural variant analysis tools"
 subparsers = parser.add_subparsers()
 
 
-filter_parser = subparsers.add_parser("filter", help="Filter structural variants")
+filter_parser = subparsers.add_parser("filter", help="Filter SVs")
 filter_parser.add_argument("a_vcf", metavar="A.vcf")
 filter_parser.add_argument("-v", "--invert", action="store_true", help="Invert filter")
 filter_parser.add_argument("-p", "--pass-only", action="store_true", help="Only retain variants with FILTER of PASS or .")
@@ -413,15 +439,15 @@ filter_parser.add_argument("-l", "--min-svlen", default=0, type=int, help="Minim
 filter_parser.set_defaults(func=filter_main)
 
 
-match_parser = subparsers.add_parser("match", help="Identify variants in file A that match a variant in file B")
+match_parser = subparsers.add_parser("match", help="Identify SVs in A.vcf that match SVs in B.vcf")
 match_parser.add_argument("a_vcf", metavar="A.vcf")
 match_parser.add_argument("b_vcf", metavar="B.vcf")
 match_parser.add_argument("-v", "--invert", action="store_true", help="Invert match")
-match_parser.add_argument("-i", "--info", metavar="INFO", action="append", help="Annotate with INFO field(s) from best match in B.  '*' = all INFO fields in B not present in A")
+match_parser.add_argument("-i", "--info", metavar="INFO", action="append", help="Output all records and annotate with INFO field(s) from best match in B.  Overrides -v.")
 match_parser.set_defaults(func=match_main)
 
 
-consequence_parser = subparsers.add_parser("consequence")
+consequence_parser = subparsers.add_parser("consequence", help="Annotate consequence of SVs on genes")
 consequence_parser.add_argument("a_vcf", metavar="A.vcf")
 consequence_parser.add_argument("genes_gff", metavar="genes.gff")
 consequence_parser.set_defaults(func=consequence_main)
