@@ -187,7 +187,7 @@ def match_main(args):
 
             # Look for matches to Avar in Bvcf.  A match must be:
             #    1) nearby
-            #    2) same SVTYPE
+            #    2) similar SVTYPE (consider INS&DUP the same)
             #    3) similar SVLEN
 
 
@@ -198,7 +198,13 @@ def match_main(args):
                 Bsvtype = Bvar.info.get("SVTYPE")
                 Bsvlen = get_svlen(Bvar)
 
+                samesvtype = False
                 if Asvtype == Bsvtype:
+                    samesvtype = True
+                elif Asvtype in ("INS","DUP") and Bsvtype in ("INS","DUP"):
+                    samesvtype = True
+
+                if samesvtype:
                     svlen_diff = abs(Asvlen - Bsvlen)
                     svlen_diff_perc = 0 if svlen_diff == 0 else 2 * svlen_diff / (Asvlen + Bsvlen)
 
