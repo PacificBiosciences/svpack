@@ -422,7 +422,8 @@ def consequence_main(args):
         if consequences:
             Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
 
-        outvcf.write(Avar)
+        if consequences or not args.require_csq:
+            outvcf.write(Avar)
 
     Avcf.close()
     outvcf.close()
@@ -486,6 +487,7 @@ match_parser.set_defaults(func=match_main)
 consequence_parser = subparsers.add_parser("consequence", help="Annotate consequence of SVs on genes")
 consequence_parser.add_argument("a_vcf", metavar="A.vcf")
 consequence_parser.add_argument("genes_gff", metavar="genes.gff")
+consequence_parser.add_argument("--require-csq", action="store_true", help="Only retain variants with a consequence annotation")
 consequence_parser.set_defaults(func=consequence_main)
 
 
