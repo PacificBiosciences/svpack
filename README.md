@@ -1,28 +1,52 @@
 # svpack
 Tools for filtering, comparing, and annotating structural variant (SV) calls in VCF format.
 
-## Filter a structural variant callset
-Filter variants in `A.vcf`, writing variants that satisfy all specified filters to `stdout`.
+## Filter an SV callset
+Filter SVs in `A.vcf`, writing SVs that satisfy all specified filters to `stdout`.
 
 ```
+-v, --invert          Invert filter, return variants that fail at least one criterion
 -p, --pass-only       Only retain variants with FILTER of PASS or .
 --require-svtype      Only retain variants with SVTYPE INFO field
 --require-svlen       Only retain variants with SVLEN INFO field
--l N,--min-svlen N    Minimum |SVLEN| for variants with SVLEN INFO field
--v, --invert          Invert result. Return variants that do not satisfy the filters.
+-l N, --min-svlen N   Minimum |SVLEN| for variants with SVLEN INFO field
 ```
 
-### Return PASS variants at least 50 bp long
-```svpack filter --pass-only --min-svlen 50 A.vcf```
+### Examples
+```
+# Return PASS SVs at least 50 bp long.
+# SVs like BND that do not have an SVLEN attribute are considered to satisfy "--min-svlen"
+svpack filter --pass-only --min-svlen 50 A.vcf```
 
-Variants like breakends that do not have an `SVLEN` INFO attribute are considered as satisfying
-the `--min-svlen`.
+# Return PASS SVs shorter than 50 bp.  Chain two svpack filter commands since if
+# "--invert", "--pass-only", and "--min-svlen 50" were specified together then svpack
+# would return SVs that do not satisfy either "--pass-only" or "--min-svlen".
+svpack filter --pass-only A.vcf | svpack filter --invert --min-svlen 50
+```
 
-### Invert to return variants shorter than 50 bp
-```svpack filter --invert --min-svlen 50 A.vcf```
+## Match variants between two structural variant callsets
+Identify SVs in `A.vcf` that match SVs in `B.vcf`.  Consider two SVs as match when the SVs are:
+* similar SVTYPE: allowing INS & DUP to match
+* nearby, with start position within --max-pos-diff
+* similar length, with difference in length within --max-svlen-diff
 
-If `--pass-only` were added with `--invert`, then `svpack filter` would return variants that
-fail either `--pass-only` or `--min-svlen 50`.  To filter for PASS variants shorter than 50 bp,
-chain two `svpack filter` commands:
+```
+-v, --invert              Invert match, return variants in A that do not match a
+                          variant in B
+-i INFO, --info INFO      Output all records and annotate with INFO field(s)
+                          from best match in B. Overrides -v.
+-p N, --max-pos-diff N    Maximum difference in POS to consider variants to match [100]
+-l N, --max-svlen-diff N  Maximum difference in SVLEN to consider variants to match [100]
+```
 
-```svpack filter --invert --min-svlen 50 A.vcf | svpack filter --pass-only -```
+### Examples
+```
+# Identify variants in A.vcf that are also seen in B.vcf
+svpack match A.vcf B.vcf
+
+# Identify variants in A.vcf that are not seen in B.vcf
+svpack match -v A.vcf B.vcf
+
+# Identify variants in KID.vcf that are not seen in MOM.vcf or DAD.vcf
+svpack match -v KID.vcf MOM.vcf | svpack match -v - DAD.vcf
+```
