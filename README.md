@@ -50,3 +50,15 @@ svpack match -v A.vcf B.vcf
 # Identify variants in KID.vcf that are not seen in MOM.vcf or DAD.vcf
 svpack match -v KID.vcf MOM.vcf | svpack match -v - DAD.vcf
 ```
+
+## Annotate SVs that impact genes
+Add a `BCSQ` INFO tag to SVs that impact a gene in `genes.gff`.  A DEL, DUP, INS, INV, or CNV variant
+is considered to impact a gene if it overlaps an exon.  A BND variant is considered to impact a gene
+if it has a breakend between the gene transcription start and end.  Currently the Ensembl GFF3 gene set
+format is supported.
+
+### Examples
+```
+# Add the BCSQ tag to A.vcf.  The annotated VCF is written to stdout.
+svpack consequence A.vcf ensembl.gff3.gz
+```
