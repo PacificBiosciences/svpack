@@ -176,7 +176,6 @@ def match_main(args):
             Avcf.header.add_record(Bvcf_windower.header.info[info].record)
             outvcf.header.add_record(Bvcf_windower.header.info[info].record)
 
-    PAD = 100
     for Avar in Avcf:
         matches = list()
 
@@ -192,8 +191,8 @@ def match_main(args):
 
 
             # Advance the Bvcf window to contain variants that nearby Avar.
-            Bvcf_windower.advance_start(Avar.chrom, Avar.start - PAD)
-            Bvcf_windower.advance_end(Avar.chrom, Avar.start + PAD)
+            Bvcf_windower.advance_start(Avar.chrom, Avar.start - args.max_pos_diff)
+            Bvcf_windower.advance_end(Avar.chrom, Avar.start + args.max_pos_diff)
             for Bvar in Bvcf_windower.active:
                 Bsvtype = Bvar.info.get("SVTYPE")
                 Bsvlen = get_svlen(Bvar)
@@ -208,7 +207,7 @@ def match_main(args):
                     svlen_diff = abs(Asvlen - Bsvlen)
                     svlen_diff_perc = 0 if svlen_diff == 0 else 2 * svlen_diff / (Asvlen + Bsvlen)
 
-                    if svlen_diff < PAD:
+                    if svlen_diff <= args.max_svlen_diff:
                         matches.append(Bvar)
 
         bestmatch = None
@@ -464,21 +463,23 @@ parser = argparse.ArgumentParser(description="Structural variant analysis tools"
 subparsers = parser.add_subparsers()
 
 
-filter_parser = subparsers.add_parser("filter", help="Filter SVs")
+filter_parser = subparsers.add_parser("filter", help="Filter for SVs that satisfy all specified criteria")
 filter_parser.add_argument("a_vcf", metavar="A.vcf")
-filter_parser.add_argument("-v", "--invert", action="store_true", help="Invert filter")
+filter_parser.add_argument("-v", "--invert", action="store_true", help="Invert filter, return variants that fail at least one criterion")
 filter_parser.add_argument("-p", "--pass-only", action="store_true", help="Only retain variants with FILTER of PASS or .")
 filter_parser.add_argument("--require-svtype", action="store_true", help="Only retain variants with SVTYPE INFO field")
 filter_parser.add_argument("--require-svlen", action="store_true", help="Only retain variants with SVLEN INFO field")
-filter_parser.add_argument("-l", "--min-svlen", default=0, type=int, help="Minimum |SVLEN| for variants with SVLEN INFO field")
+filter_parser.add_argument("-l", "--min-svlen", metavar="N", default=0, type=int, help="Minimum |SVLEN| for variants with SVLEN INFO field")
 filter_parser.set_defaults(func=filter_main)
 
 
 match_parser = subparsers.add_parser("match", help="Identify SVs in A.vcf that match SVs in B.vcf")
 match_parser.add_argument("a_vcf", metavar="A.vcf")
 match_parser.add_argument("b_vcf", metavar="B.vcf")
-match_parser.add_argument("-v", "--invert", action="store_true", help="Invert match")
+match_parser.add_argument("-v", "--invert", action="store_true", help="Invert match, return variants in A that do not match a variant in B")
 match_parser.add_argument("-i", "--info", metavar="INFO", action="append", help="Output all records and annotate with INFO field(s) from best match in B.  Overrides -v.")
+match_parser.add_argument("-p", "--max-pos-diff", metavar="N", default=100, type=int, help="Maximum difference in POS to consider variants to match [%(default)s]")
+match_parser.add_argument("-l", "--max-svlen-diff", metavar="N", default=100, type=int, help="Maximum difference in SVLEN to consider variants to match [%(default)s]")
 match_parser.set_defaults(func=match_main)
 
 
