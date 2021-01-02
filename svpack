@@ -397,27 +397,31 @@ def consequence_main(args):
             # and end of the variant.
             consequences = []
             svtype = Avar.info["SVTYPE"]
-            if svtype in ("DEL", "DUP", "INS", "INV", "CNV"):
-                chromStart = Avar.start
-                chromEnd = Avar.stop
-                for k,gene in activegenes:
-                    transcripts = set()
-                    if gene.chrom == Avar.chrom and gene.start < Avar.start and gene.end >= Avar.start:
-                        for transcript in gene.transcripts:
-                            for exon in transcript.exons:
-                                if exon.end >= chromStart and exon.start < chromEnd:
-                                    transcripts.add(transcript)
-                                    break
-                    # Add one BCSQ per gene
-                    if transcripts:
-                        consequences.append(Consequence("sv:" + svtype, gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
+            chromStart = Avar.start
+            chromEnd = Avar.stop
+            for k,gene in activegenes:
+                transcripts = set()
+                # Check if SV span overlaps the gene body.
+                if gene.chrom == Avar.chrom and min(chromEnd, gene.end) > max(chromStart, gene.start):
+                    cds = False
+                    utr = False
+                    # Check if SV span overlaps any exon of the gene.
+                    for transcript in gene.transcripts:
+                        for exon in transcript.exons:
+                            if min(chromEnd, exon.end) > max(chromStart, exon.start):
+                                if exon.type == "CDS":
+                                    cds = True
+                                else:
+                                    utr = True
 
-            # Breakend variants impact a gene if the break falls anywhere
-            # within the gene body.
-            if Avar.info["SVTYPE"] == "BND":
-                for k,gene in activegenes:
-                    if gene.chrom == Avar.chrom and gene.start < Avar.start and gene.end >= Avar.start:
-                        consequences.append(Consequence("sv:BND", gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
+                    # Add only one consequence entry per gene, prioritizing CDS > UTR > INTRON.
+                    if svtype == "BND":
+                        # Breakend disrupts a gene if it lies anywhere in the gene body.
+                        csq = "bnd"
+                    else:
+                        csq = "cds" if cds else "utr" if utr else "intron"
+
+                    consequences.append(Consequence("sv:" + csq, gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
 
         if consequences:
             Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
