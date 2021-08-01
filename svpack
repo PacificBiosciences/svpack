@@ -272,7 +272,11 @@ class Gff:
             self.phase = gff_line.phase
             self.attributes = gff_line.attributes
             self.id = self.attributes["ID"].split(":")[1]
-            self.symbol = self.attributes["Name"]
+            try:
+                self.symbol = self.attributes["Name"]
+            except KeyError:
+                self.symbol = self.attributes["gene_id"]
+
             self.transcripts = []
 
         def add_transcript(self, gff_transcript):
