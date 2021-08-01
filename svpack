@@ -7,10 +7,18 @@ pysam=None
 
 
 def get_svlen(v):
-    if "SVLEN" not in v.info:
-        return 0
-    else:
+    # Obtain SVLEN from INFO when available
+    if "SVLEN" in v.info:
         return int(v.info["SVLEN"][0] if type(v.info["SVLEN"]) is tuple else v.info["SVLEN"])
+    # Calculate SVLEN from REF and ALT alleles for INS and DEL when ALT is not a symbolic allele
+    elif "SVTYPE" in v.info and v.info["SVTYPE"] in ("INS","DEL") and "<" not in v.alts[0]:
+        return len(v.alts[0])-len(v.ref)
+    # Calculate SVLEN from END INFO field when available
+    elif v.stop > v.start:
+        return v.stop - v.start
+    else:
+        return None
+
 
 
 class VariantFileStream:
@@ -147,7 +155,7 @@ def filter_main(args):
         if args.require_svlen:
             if "SVLEN" not in Avar.info:
                 retain = False
-        if "SVLEN" in Avar.info:
+        if get_svlen(Avar) is not None:
             if abs(get_svlen(Avar)) < args.min_svlen:
                 retain = False
 
@@ -204,7 +212,7 @@ def match_main(args):
                     samesvtype = True
 
                 if samesvtype:
-                    svlen_diff = abs(Asvlen - Bsvlen)
+                    svlen_diff = 0 if (Asvlen is None or Bsvlen is None) else abs(Asvlen - Bsvlen)
                     svlen_diff_perc = 0 if svlen_diff == 0 else 2 * svlen_diff / (Asvlen + Bsvlen)
 
                     if svlen_diff <= args.max_svlen_diff:
@@ -215,7 +223,7 @@ def match_main(args):
         if len(matches):
             for match in matches:
                 matchsvlen = get_svlen(match)
-                matchdiff = abs(matchsvlen - Asvlen) + abs(match.start - Avar.start)
+                matchdiff = 0 if (Asvlen is None or matchsvlen is None) else abs(matchsvlen - Asvlen) + abs(match.start - Avar.start)
 
                 if bestmatch is None or matchdiff < bestmatchdiff:
                     bestmatch = match
@@ -478,7 +486,7 @@ filter_parser.add_argument("-v", "--invert", action="store_true", help="Invert f
 filter_parser.add_argument("-p", "--pass-only", action="store_true", help="Only retain variants with FILTER of PASS or .")
 filter_parser.add_argument("--require-svtype", action="store_true", help="Only retain variants with SVTYPE INFO field")
 filter_parser.add_argument("--require-svlen", action="store_true", help="Only retain variants with SVLEN INFO field")
-filter_parser.add_argument("-l", "--min-svlen", metavar="N", default=0, type=int, help="Minimum |SVLEN| for variants with SVLEN INFO field")
+filter_parser.add_argument("-l", "--min-svlen", metavar="N", default=0, type=int, help="Minimum |SVLEN| for variants with length")
 filter_parser.set_defaults(func=filter_main)
 
 
