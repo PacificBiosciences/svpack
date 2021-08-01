@@ -428,13 +428,8 @@ def consequence_main(args):
                     consequences.append(Consequence("sv:" + csq, gene.symbol, "", gene.attributes.get("biotype",""), gene.strand, "", ""))
 
         if consequences:
-            if args.split_csq:
-                for c in consequences:
-                    Avar.info["BCSQ"] = str(c)
-                    outvcf.write(Avar)
-            else:
-                Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
-                outvcf.write(Avar)
+            Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
+            outvcf.write(Avar)
         elif not args.require_csq:
             outvcf.write(Avar)
 
@@ -501,7 +496,6 @@ consequence_parser = subparsers.add_parser("consequence", help="Annotate consequ
 consequence_parser.add_argument("a_vcf", metavar="A.vcf")
 consequence_parser.add_argument("genes_gff", metavar="genes.gff")
 consequence_parser.add_argument("--require-csq", action="store_true", help="Only retain variants with a consequence annotation")
-consequence_parser.add_argument("--split-csq", action="store_true", help="Output one VCF record for each consequence entry (for slivar)")
 consequence_parser.set_defaults(func=consequence_main)
 
 
