@@ -8,7 +8,6 @@ Filter SVs in `A.vcf`, writing SVs that satisfy all specified filters to `stdout
 -v, --invert          Invert filter, return variants that fail at least one criterion
 -p, --pass-only       Only retain variants with FILTER of PASS or .
 --require-svtype      Only retain variants with SVTYPE INFO field
---require-svlen       Only retain variants with SVLEN INFO field
 -l N, --min-svlen N   Minimum |SVLEN| for variants with SVLEN INFO field
 ```
 
