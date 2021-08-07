@@ -6,16 +6,17 @@ collections=None
 pysam=None
 
 
-def get_svlen(v):
+def get_svlen_abs(v):
+    """Absolute value of structural variant length"""
     # Obtain SVLEN from INFO when available
     if "SVLEN" in v.info:
-        return int(v.info["SVLEN"][0] if type(v.info["SVLEN"]) is tuple else v.info["SVLEN"])
+        return abs(int(v.info["SVLEN"][0] if type(v.info["SVLEN"]) is tuple else v.info["SVLEN"]))
     # Calculate SVLEN from REF and ALT alleles for INS and DEL when ALT is not a symbolic allele
     elif "SVTYPE" in v.info and v.info["SVTYPE"] in ("INS","DEL") and "<" not in v.alts[0]:
-        return len(v.alts[0])-len(v.ref)
+        return abs(len(v.alts[0])-len(v.ref))
     # Calculate SVLEN from END INFO field when available
     elif v.stop > v.start:
-        return v.stop - v.start
+        return abs(v.stop - v.start)
     else:
         return None
 
@@ -152,12 +153,9 @@ def filter_main(args):
         if args.require_svtype:
             if "SVTYPE" not in Avar.info:
                 retain = False
-        if args.require_svlen:
-            if "SVLEN" not in Avar.info:
-                retain = False
-        if get_svlen(Avar) is not None:
-            if abs(get_svlen(Avar)) < args.min_svlen:
-                retain = False
+        Asvlen = get_svlen_abs(Avar)
+        if Asvlen is not None and Asvlen < args.min_svlen:
+            retain = False
 
         if bool(retain) != bool(args.invert):
             outvcf.write(Avar)
@@ -187,7 +185,7 @@ def match_main(args):
     for Avar in Avcf:
         matches = list()
 
-        Asvlen = get_svlen(Avar)
+        Asvlen = get_svlen_abs(Avar)
 
         if "SVTYPE" in Avar.info: # only look for matches for SVs
             Asvtype = Avar.info["SVTYPE"]
@@ -203,7 +201,7 @@ def match_main(args):
             Bvcf_windower.advance_end(Avar.chrom, Avar.start + args.max_pos_diff)
             for Bvar in Bvcf_windower.active:
                 Bsvtype = Bvar.info.get("SVTYPE")
-                Bsvlen = get_svlen(Bvar)
+                Bsvlen = get_svlen_abs(Bvar)
 
                 samesvtype = False
                 if Asvtype == Bsvtype:
@@ -222,7 +220,7 @@ def match_main(args):
         bestmatchdiff = 0
         if len(matches):
             for match in matches:
-                matchsvlen = get_svlen(match)
+                matchsvlen = get_svlen_abs(match)
                 matchdiff = 0 if (Asvlen is None or matchsvlen is None) else abs(matchsvlen - Asvlen) + abs(match.start - Avar.start)
 
                 if bestmatch is None or matchdiff < bestmatchdiff:
@@ -485,7 +483,6 @@ filter_parser.add_argument("a_vcf", metavar="A.vcf")
 filter_parser.add_argument("-v", "--invert", action="store_true", help="Invert filter, return variants that fail at least one criterion")
 filter_parser.add_argument("-p", "--pass-only", action="store_true", help="Only retain variants with FILTER of PASS or .")
 filter_parser.add_argument("--require-svtype", action="store_true", help="Only retain variants with SVTYPE INFO field")
-filter_parser.add_argument("--require-svlen", action="store_true", help="Only retain variants with SVLEN INFO field")
 filter_parser.add_argument("-l", "--min-svlen", metavar="N", default=0, type=int, help="Minimum |SVLEN| for variants with length")
 filter_parser.set_defaults(func=filter_main)
 
