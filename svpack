@@ -4,7 +4,7 @@ import argparse
 heapq=None
 collections=None
 pysam=None
-
+sys=None
 
 def get_svlen_abs(v):
     """Absolute value of structural variant length"""
@@ -142,7 +142,8 @@ class VariantFileWindower:
 
 def filter_main(args):
     Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
-    outvcf = pysam.VariantFile("-", "w", header=Avcf.header)
+    outvcf = sys.stdout
+    outvcf.write("%s" % (Avcf.header))
 
     for Avar in Avcf:
         retain = True
@@ -158,7 +159,7 @@ def filter_main(args):
             retain = False
 
         if bool(retain) != bool(args.invert):
-            outvcf.write(Avar)
+            outvcf.write("%s" % (Avar))
 
     Avcf.close()
     outvcf.close()
@@ -167,7 +168,6 @@ def filter_main(args):
 def match_main(args):
     Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
     Bvcf_windower = VariantFileWindower(VariantFileStream(pysam.VariantFile(args.b_vcf), is_sorted=False))
-    outvcf = pysam.VariantFile("-", "w", header=Avcf.header)
 
     # Define INFO fields from Bvcf that will be applied to records in Avcf
     if args.info is None:
@@ -175,13 +175,13 @@ def match_main(args):
     for info in args.info:
         if info == "*":
             for k,v in Bvcf_windower.header.info.items():
-                if k not in outvcf.header.info:
+                if k not in Avcf.header.info:
                     Avcf.header.add_record(v.record)
-                    outvcf.header.add_record(v.record)
-        elif info not in outvcf.header.info and info in Bvcf_windower.header.info:
+        elif info not in Avcf.header.info and info in Bvcf_windower.header.info:
             Avcf.header.add_record(Bvcf_windower.header.info[info].record)
-            outvcf.header.add_record(Bvcf_windower.header.info[info].record)
 
+    outvcf = sys.stdout
+    outvcf.write("%s" % (Avcf.header))
     for Avar in Avcf:
         matches = list()
 
@@ -241,7 +241,7 @@ def match_main(args):
                     if info not in Avar.info:
                         Avar.info[info] = match.info[info]
 
-            outvcf.write(Avar)
+            outvcf.write("%s" % (Avar))
 
     Avcf.close()
     Bvcf_windower.close()
@@ -385,9 +385,9 @@ def consequence_main(args):
     genes = collections.deque(gene_gff.genes)
     activegenes = [] # Heap sorted by (chrom,chromEnd) of genes that might overlap a variant
     Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
-    outvcf = pysam.VariantFile("-", "w", header=Avcf.header)
-    for vcf in (Avcf, outvcf):
-        vcf.header.add_line("""##INFO=<ID=BCSQ,Number=.,Type=String,Description="Local consequence annotation. Format: Consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change">""")
+    Avcf.header.add_line("""##INFO=<ID=BCSQ,Number=.,Type=String,Description="Local consequence annotation. Format: Consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change">""")
+    outvcf = sys.stdout
+    outvcf.write("%s" % (Avcf.header))
 
     serialnumber = 0
     for Avar in Avcf:
@@ -435,9 +435,9 @@ def consequence_main(args):
 
         if consequences:
             Avar.info["BCSQ"] = ",".join([str(c) for c in consequences])
-            outvcf.write(Avar)
+            outvcf.write("%s" % (Avar))
         elif not args.require_csq:
-            outvcf.write(Avar)
+            outvcf.write("%s" % (Avar))
 
     Avcf.close()
     outvcf.close()
@@ -445,10 +445,10 @@ def consequence_main(args):
 
 def tag_zygosity_main(args):
     invcf = VariantFileStream(pysam.VariantFile(args.in_vcf), is_sorted=False)
-    outvcf = pysam.VariantFile("-", "w", header=invcf.header)
-    for vcf in (invcf, outvcf):
-        vcf.header.add_line("""##INFO=<ID=hetalt,Number=.,Type=String,Description="Samples with heterozygous REF/ALT genotype">""")
-        vcf.header.add_line("""##INFO=<ID=homalt,Number=.,Type=String,Description="Samples with homozygous ALT/ALT or hemizygous ALT genotype">""")
+    invcf.header.add_line("""##INFO=<ID=hetalt,Number=.,Type=String,Description="Samples with heterozygous REF/ALT genotype">""")
+    invcf.header.add_line("""##INFO=<ID=homalt,Number=.,Type=String,Description="Samples with homozygous ALT/ALT or hemizygous ALT genotype">""")
+    outvcf = sys.stdout
+    outvcf.write("%s" % (invcf.header))
 
     for invar in invcf:
         hetalt_samples = set()
@@ -466,7 +466,7 @@ def tag_zygosity_main(args):
         if len(homalt_samples):
             invar.info["homalt"] = ",".join([str(s) for s in sorted(homalt_samples)])
 
-        outvcf.write(invar)
+        outvcf.write("%s" % (invar))
 
     invcf.close()
     outvcf.close()
@@ -518,6 +518,7 @@ def main():
 
     args = parser.parse_args()
     global pysam; import pysam
+    global sys; import sys
     global collections; import collections
     global heapq; import heapq
 
