@@ -62,7 +62,7 @@ class VariantFileStream:
         """Key for ordering variant records. Sort by (chromid, chromname, start).  The chromosome name
         is included to support alphabetical sorting of unlisted chromosomes after the listed chromosomes.
         For VCFs without any listed chromosomes, this permits alphabetical sort order."""
-        key = (self.get_chrom_id(variant.chrom), variant.chrom if variant.chrom.startswith("chr") else "chr" + variant.chrom, variant.start)
+        key = (self.get_chrom_id(variant.chrom), variant.chrom, variant.start)
         return key
 
 
