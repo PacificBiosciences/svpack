@@ -1,6 +1,10 @@
 # svpack
 Tools for filtering, comparing, and annotating structural variant (SV) calls in VCF format.
 
+## Getting support
+Bugs and feature requests are welcome. Please use GitHub Issues to submit. Pull requests are also appreciated. We are not able to provide scientific support for interpreting variants or cases.
+
+
 ## Filter an SV callset
 Filter SVs in `A.vcf`, writing SVs that satisfy all specified filters to `stdout`.
 
