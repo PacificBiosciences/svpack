@@ -4,7 +4,6 @@ import argparse
 heapq=None
 collections=None
 pysam=None
-math=None
 sys=None
 
 def get_svlen_abs(v):
@@ -15,12 +14,9 @@ def get_svlen_abs(v):
     # Calculate SVLEN from REF and ALT alleles for INS and DEL when ALT is not a symbolic allele
     elif "SVTYPE" in v.info and v.info["SVTYPE"] in ("INS","DEL") and "<" not in v.alts[0]:
         return abs(len(v.alts[0])-len(v.ref))
-    # Return MATEDIST for BNDs if available
-    if "SVTYPE" in v.info and v.info["SVTYPE"]=="BND" and "MATEDIST" in v.info:
-        return int(v.info["MATEDIST"])
-    # Return +inf for BNDs without MATEDIST
-    elif "SVTYPE" in v.info and v.info["SVTYPE"]=="BND":
-        return math.inf
+    # For BNDs, return MATEDIST for BNDs if available and None otherwise
+    if "SVTYPE" in v.info and v.info["SVTYPE"]=="BND":
+        return abs(int(v.info["MATEDIST"])) if "MATEDIST" in v.info else None
     # Calculate SVLEN from END INFO field when available
     elif v.stop > v.start:
         return abs(v.stop - v.start)
@@ -528,7 +524,6 @@ def main():
     global sys; import sys
     global collections; import collections
     global heapq; import heapq
-    global math; import math
 
     if hasattr(args, "func"):
         args.func(args)
