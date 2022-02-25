@@ -11,7 +11,8 @@ def get_svlen_abs(v):
     # Obtain SVLEN from INFO when available
     if "SVLEN" in v.info:
         svlen = v.info["SVLEN"][0] if type(v.info["SVLEN"]) is tuple else v.info["SVLEN"]
-        return abs(int(svlen))
+        if svlen is not None:
+            return abs(int(svlen))
     # Calculate SVLEN from REF and ALT alleles for INS and DEL when ALT is not a symbolic allele
     if "SVTYPE" in v.info and v.info["SVTYPE"] in ("INS","DEL") and "<" not in v.alts[0]:
         return abs(len(v.alts[0])-len(v.ref))
