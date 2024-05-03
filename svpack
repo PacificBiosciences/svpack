@@ -453,13 +453,13 @@ def tag_zygosity_main(args):
     invcf.header.add_line("""##INFO=<ID=homalt,Number=.,Type=String,Description="Samples with homozygous ALT/ALT or hemizygous ALT genotype">""")
     outvcf = sys.stdout
     outvcf.write("%s" % (invcf.header))
-    affected = set(args.affected.split(","))
+    affected = set(args.affected.split(",")) if args.affected else set()
 
     for invar in invcf:
         hetalt_samples = set()
         homalt_samples = set()
         for sample in invar.samples:
-            if sample not in affected:
+            if affected and sample not in affected:
                 continue
             GT = invar.samples[sample].get("GT", (None,))
             refct = len([g for g in GT if g == 0])
@@ -513,7 +513,7 @@ consequence_parser.set_defaults(func=consequence_main)
 
 tag_zygosity_parser = subparsers.add_parser("tagzygosity", help="Add hetalt and homalt INFO tags that list samples with non-reference genotypes")
 tag_zygosity_parser.add_argument("in_vcf", metavar="IN.vcf")
-tag_zygosity_parser.add_argument("affected", help="Comma-delimited list of affected samples")
+tag_zygosity_parser.add_argument("--affected", help="Comma-delimited list of affected samples")
 tag_zygosity_parser.set_defaults(func=tag_zygosity_main)
 
 def main():
