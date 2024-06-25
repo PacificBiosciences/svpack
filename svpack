@@ -28,7 +28,10 @@ def get_svlen_abs(v):
 
 class VariantFileStream:
     """A stream of VariantRecords from a VCF"""
-    def __init__(self, variant_file, is_sorted=True):
+    def __init__(self, variant_file_path, is_sorted=True):
+        save = pysam.set_verbosity(0)  # suppress [E::idx_find_and_load]
+        variant_file = pysam.VariantFile(variant_file_path)
+        pysam.set_verbosity(save)  # restore warnings
         self.header = variant_file.header
         self.chroms = dict([(chrom, v) for chrom,v in variant_file.header.contigs.items()])
         self._reuse = False
@@ -145,7 +148,7 @@ class VariantFileWindower:
 
 
 def filter_main(args):
-    Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
+    Avcf = VariantFileStream(args.a_vcf, is_sorted=False)
     outvcf = sys.stdout
     outvcf.write("%s" % (Avcf.header))
 
@@ -170,8 +173,8 @@ def filter_main(args):
 
 
 def match_main(args):
-    Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
-    Bvcf_windower = VariantFileWindower(VariantFileStream(pysam.VariantFile(args.b_vcf), is_sorted=False))
+    Avcf = VariantFileStream(args.a_vcf, is_sorted=False)
+    Bvcf_windower = VariantFileWindower(VariantFileStream(args.b_vcf, is_sorted=False))
 
     # Define INFO fields from Bvcf that will be applied to records in Avcf
     if args.info is None:
@@ -388,7 +391,7 @@ def consequence_main(args):
     gene_gff = Gff(args.genes_gff)
     genes = collections.deque(gene_gff.genes)
     activegenes = [] # Heap sorted by (chrom,chromEnd) of genes that might overlap a variant
-    Avcf = VariantFileStream(pysam.VariantFile(args.a_vcf), is_sorted=False)
+    Avcf = VariantFileStream(args.a_vcf, is_sorted=False)
     Avcf.header.add_line("""##INFO=<ID=BCSQ,Number=.,Type=String,Description="Local consequence annotation. Format: Consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change">""")
     outvcf = sys.stdout
     outvcf.write("%s" % (Avcf.header))
@@ -448,7 +451,7 @@ def consequence_main(args):
 
 
 def tag_zygosity_main(args):
-    invcf = VariantFileStream(pysam.VariantFile(args.in_vcf), is_sorted=False)
+    invcf = VariantFileStream(args.in_vcf, is_sorted=False)
     invcf.header.add_line("""##INFO=<ID=hetalt,Number=.,Type=String,Description="Samples with heterozygous REF/ALT genotype">""")
     invcf.header.add_line("""##INFO=<ID=homalt,Number=.,Type=String,Description="Samples with homozygous ALT/ALT or hemizygous ALT genotype">""")
     outvcf = sys.stdout
