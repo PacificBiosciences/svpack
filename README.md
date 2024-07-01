@@ -8,17 +8,18 @@ Bugs and feature requests are welcome. Please use GitHub Issues to submit. Pull 
 
 ## Related data resources
 
+Data resource files are available in [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8415406.svg)](https://doi.org/10.5281/zenodo.8415406)
+
 ### Human population control SV callsets
 
-* `HPRC_GIAB.GRCh38.pbsv.vcf.gz` - pbsv calls using HiFi reads for 103 humans from [Genome in a Bottle](http://doi.org/10.1038/sdata.2016.25) and [Human Pangenome Reference Consortium](https://humanpangenome.org/data-use-protocol/)
-* [`EEE_SV-Pop_1.ALL.sites.20181204.vcf.gz`](http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/hgsv_sv_discovery/working/20181025_EEE_SV-Pop_1/VariantCalls_EEE_SV-Pop_1/) - SV calls using PacBio reads for 15 humans from [Audano 2019](https://doi.org/10.1016/j.cell.2018.12.019)
-* [`nstd166.GRCh38.variant_call.vcf.gz`](https://www.ncbi.nlm.nih.gov/dbvar/studies/nstd166/) - gnomAD-SV SV calls using short reads for 10,847 humans from [Collins 2020](https://www.nature.com/articles/s41586-020-2287-8)
+* [`static_resources/GRCh38/sv_pop_vcfs/hprc.GRCh38.pbsv.vcf.gz`](https://doi.org/10.5281/zenodo.8415406) - pbsv calls using HiFi reads for 103 humans from [Genome in a Bottle](http://doi.org/10.1038/sdata.2016.25) and [Human Pangenome Reference Consortium](https://humanpangenome.org/data-use-protocol/)
+* [`static_resources/GRCh38/sv_pop_vcfs/EEE_SV-Pop_1.ALL.sites.20181204.vcf.gz`](http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/hgsv_sv_discovery/working/20181025_EEE_SV-Pop_1/VariantCalls_EEE_SV-Pop_1/) - SV calls using PacBio reads for 15 humans from [Audano 2019](https://doi.org/10.1016/j.cell.2018.12.019)
+* [`static_resources/GRCh38/sv_pop_vcfs/nstd166.GRCh38.variant_call.vcf.gz`](https://www.ncbi.nlm.nih.gov/dbvar/studies/nstd166/) - gnomAD-SV SV calls using short reads for 10,847 humans from [Collins 2020](https://www.nature.com/articles/s41586-020-2287-8)
 
 ### Gene annotations
 
-* `static_resources/GRCh38/ensembl.GRCh38.101.reformatted.gff3.gz` - [Ensembl gene annotations](http://ftp.ensembl.org/pub/current_gff3/homo_sapiens/) for GRCh38 in GFF3 with chromosome names reformatted to have chr prefix. Unzip to be accepted by `svpack consequence`.
+* [`static_resources/GRCh38/ensembl.GRCh38.101.reformatted.gff3.gz`](https://doi.org/10.5281/zenodo.8415406) - [Ensembl gene annotations](http://ftp.ensembl.org/pub/current_gff3/homo_sapiens/) for GRCh38 in GFF3 with chromosome names reformatted to have chr prefix. Unzip to be accepted by `svpack consequence`.
 
-All files described above can be downloaded from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8415406.svg)](https://doi.org/10.5281/zenodo.8415406)
 
 ## Examples
 
