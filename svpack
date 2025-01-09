@@ -186,6 +186,10 @@ def match_main(args):
                     Avcf.header.add_record(v.record)
         elif info not in Avcf.header.info and info in Bvcf_windower.header.info:
             Avcf.header.add_record(Bvcf_windower.header.info[info].record)
+      # Add the B_MATCH_ID field to the header
+    if "B_MATCH_ID" not in Avcf.header.info:
+        Avcf.header.add_line('##INFO=<ID=B_MATCH_ID,Number=1,Type=String,Description="ID of the best match from B VCF">')
+
 
     outvcf = sys.stdout
     outvcf.write("%s" % (Avcf.header))
@@ -247,7 +251,11 @@ def match_main(args):
                 for info in infos_to_apply:
                     if info not in Avar.info:
                         Avar.info[info] = match.info[info]
-
+                if bestmatch:
+                    if "B_MATCH_ID" in Avar.info:
+                        Avar.info["B_MATCH_ID"] = Avar.info["B_MATCH_ID"] + "," + bestmatch.id
+                    else:
+                        Avar.info["B_MATCH_ID"] = bestmatch.id
             outvcf.write("%s" % (Avar))
 
     Avcf.close()
